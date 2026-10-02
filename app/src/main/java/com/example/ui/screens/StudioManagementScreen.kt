@@ -1,0 +1,444 @@
+package com.example.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import com.example.R
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.text.style.TextOverflow
+import coil.compose.AsyncImage
+import com.example.data.local.entity.StudioEntity
+import com.example.ui.MainViewModel
+import com.example.ui.ScreenState
+import com.example.ui.theme.LocalAccentColor
+import com.example.ui.theme.LocalBetaTestPrivacy
+import com.example.ui.theme.LocalVaultPalette
+import com.example.ui.theme.privacyImageBlur
+import java.util.UUID
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StudioManagementScreen(
+    viewModel: MainViewModel,
+    modifier: Modifier = Modifier
+) {
+    val palette = LocalVaultPalette.current
+    val accent = LocalAccentColor.current
+    val isLight = palette.name.equals("light", ignoreCase = true)
+    val circleBorderColor = if (isLight) Color.Black else Color.White
+
+    val studios by viewModel.allStudios.collectAsStateWithLifecycle()
+    val links by viewModel.allLinks.collectAsStateWithLifecycle()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val showCards = settings.showManagementCards
+
+    var showAddDialog by remember { mutableStateOf(false) }
+    var studioToEdit by remember { mutableStateOf<StudioEntity?>(null) }
+    var sortOption by remember { mutableStateOf(ManagementSortOption.NAME_AZ) }
+    var showSortMenu by remember { mutableStateOf(false) }
+
+    val scrollKey = "management_studios"
+    val initialScroll = remember { viewModel.getScrollPosition(scrollKey) }
+    val gridState = rememberLazyGridState(
+        initialFirstVisibleItemIndex = initialScroll.first,
+        initialFirstVisibleItemScrollOffset = initialScroll.second
+    )
+
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                viewModel.saveScrollPosition(scrollKey, index, offset)
+            }
+    }
+
+    var previousSort by rememberSaveable { mutableStateOf(sortOption.name) }
+    LaunchedEffect(sortOption) {
+        if (previousSort != sortOption.name) {
+            previousSort = sortOption.name
+            viewModel.saveScrollPosition(scrollKey, 0, 0)
+            gridState.scrollToItem(0)
+        }
+    }
+
+    // Precalculate scene counts once in O(Links) for O(1) instant lookup per studio item
+    val studioSceneCounts = remember(links) {
+        links.flatMap { it.studioIds }.groupingBy { it }.eachCount()
+    }
+
+    val sortedStudios = remember(studios, sortOption) {
+        when (sortOption) {
+            ManagementSortOption.NAME_AZ -> studios.sortedBy { it.name.lowercase() }
+            ManagementSortOption.NAME_ZA -> studios.sortedByDescending { it.name.lowercase() }
+            ManagementSortOption.NEWEST -> studios.sortedByDescending { it.createdAt }
+            ManagementSortOption.OLDEST -> studios.sortedBy { it.createdAt }
+        }
+    }
+
+    Scaffold(
+        containerColor = palette.bg,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = {
+            TopAppBar(
+                title = { Text("Studios (${studios.size})", color = palette.textPrimary) },
+                navigationIcon = {
+                    IconButton(onClick = { viewModel.navigateBack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = palette.textPrimary)
+                    }
+                },
+                actions = {
+                    Box {
+                        IconButton(
+                            onClick = { showSortMenu = true },
+                            modifier = Modifier.testTag("sort_studios_button")
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_app_sort),
+                                contentDescription = "Sort",
+                                tint = palette.textPrimary
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false },
+                            shape = RoundedCornerShape(16.dp),
+                            containerColor = palette.surface,
+                            modifier = Modifier.background(palette.surface)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("A - Z", color = if (sortOption == ManagementSortOption.NAME_AZ) accent else palette.textPrimary) },
+                                leadingIcon = {
+                                    if (sortOption == ManagementSortOption.NAME_AZ) {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = accent)
+                                    }
+                                },
+                                onClick = {
+                                    sortOption = ManagementSortOption.NAME_AZ
+                                    showSortMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Z - A", color = if (sortOption == ManagementSortOption.NAME_ZA) accent else palette.textPrimary) },
+                                leadingIcon = {
+                                    if (sortOption == ManagementSortOption.NAME_ZA) {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = accent)
+                                    }
+                                },
+                                onClick = {
+                                    sortOption = ManagementSortOption.NAME_ZA
+                                    showSortMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("New", color = if (sortOption == ManagementSortOption.NEWEST) accent else palette.textPrimary) },
+                                leadingIcon = {
+                                    if (sortOption == ManagementSortOption.NEWEST) {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = accent)
+                                    }
+                                },
+                                onClick = {
+                                    sortOption = ManagementSortOption.NEWEST
+                                    showSortMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Old", color = if (sortOption == ManagementSortOption.OLDEST) accent else palette.textPrimary) },
+                                leadingIcon = {
+                                    if (sortOption == ManagementSortOption.OLDEST) {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = accent)
+                                    }
+                                },
+                                onClick = {
+                                    sortOption = ManagementSortOption.OLDEST
+                                    showSortMenu = false
+                                }
+                            )
+                        }
+                    }
+
+                    IconButton(onClick = { showAddDialog = true }, modifier = Modifier.testTag("add_studio_button")) {
+                        Icon(Icons.Default.AddBusiness, contentDescription = "Add Studio", tint = accent)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = palette.surface)
+            )
+        }
+    ) { padding ->
+        if (sortedStudios.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = padding.calculateTopPadding()),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(painter = painterResource(id = R.drawable.ic_nav_studio), contentDescription = null, tint = palette.textMuted, modifier = Modifier.size(54.dp))
+                    Text("No studios in vault", color = palette.textPrimary, fontWeight = FontWeight.Bold)
+                    Button(onClick = { showAddDialog = true }) {
+                        Text("Add Studio")
+                    }
+                }
+            }
+        } else {
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Fixed(3),
+                contentPadding = PaddingValues(
+                    top = padding.calculateTopPadding() + 16.dp,
+                    bottom = 16.dp,
+                    start = 12.dp,
+                    end = 12.dp
+                ),
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(sortedStudios, key = { it.id }) { studio ->
+                    val sceneCount = studioSceneCounts[studio.id] ?: 0
+                    val itemContent = @Composable {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            val isBetaTest = LocalBetaTestPrivacy.current
+
+                            val studioCustomBg = studio.logoBgColor?.let {
+                                try { Color(android.graphics.Color.parseColor(it)) } catch (_: Exception) { null }
+                            } ?: palette.surface
+
+                            if (!studio.logoUrl.isNullOrEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(70.dp)
+                                        .clip(CircleShape)
+                                        .background(studioCustomBg)
+                                        .border(1.5.dp, circleBorderColor, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AsyncImage(
+                                        model = studio.logoUrl,
+                                        contentDescription = studio.name,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(6.dp)
+                                            .privacyImageBlur(isBetaTest)
+                                    )
+                                    if (isBetaTest) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(Color.Black.copy(alpha = 0.75f))
+                                        )
+                                    }
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(70.dp)
+                                        .clip(CircleShape)
+                                        .background(palette.surface)
+                                        .border(1.5.dp, circleBorderColor, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(painter = painterResource(id = R.drawable.ic_nav_studio), contentDescription = null, tint = palette.textMuted, modifier = Modifier.size(36.dp))
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = studio.name,
+                                color = palette.textPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            Text(
+                                text = "$sceneCount scenes",
+                                color = palette.textMuted,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    val isLight = palette.name.equals("light", ignoreCase = true)
+                    val isAmoled = palette.name.equals("amoled", ignoreCase = true)
+                    val neutralCardBg = when {
+                        isAmoled -> Color(0xFF1E1E24)
+                        isLight -> Color(0xFFFFFFFF)
+                        else -> Color(0xFF383842)
+                    }
+
+                    if (showCards) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable {
+                                    viewModel.navigateTo(ScreenState.StudioScenes(studio.id))
+                                },
+                            elevation = CardDefaults.cardElevation(
+                                defaultElevation = if (isLight) 3.dp else 1.5.dp
+                            ),
+                            colors = CardDefaults.cardColors(containerColor = neutralCardBg)
+                        ) {
+                            itemContent()
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable {
+                                    viewModel.navigateTo(ScreenState.StudioScenes(studio.id))
+                                }
+                        ) {
+                            itemContent()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Add / Edit Studio Dialog
+    if (showAddDialog || studioToEdit != null) {
+        val editing = studioToEdit
+        var name by remember { mutableStateOf(editing?.name ?: "") }
+        var logoUrl by remember { mutableStateOf(editing?.logoUrl ?: "") }
+
+        AlertDialog(
+            onDismissRequest = {
+                showAddDialog = false
+                studioToEdit = null
+            },
+            title = { Text(if (editing != null) "Edit Studio" else "Add Studio") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Studio Name *") },
+                        shape = RoundedCornerShape(32.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = logoUrl,
+                        onValueChange = { logoUrl = it },
+                        label = { Text("Logo Image URL") },
+                        shape = RoundedCornerShape(32.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Live Circular Preview Section
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = palette.surface,
+                            shadowElevation = 2.dp,
+                            modifier = Modifier
+                                .size(54.dp)
+                                .clip(CircleShape)
+                                .border(1.5.dp, circleBorderColor, CircleShape)
+                        ) {
+                            if (logoUrl.trim().isNotEmpty()) {
+                                AsyncImage(
+                                    model = logoUrl.trim(),
+                                    contentDescription = "Preview",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_nav_studio),
+                                        contentDescription = null,
+                                        tint = palette.textMuted,
+                                        modifier = Modifier.size(30.dp)
+                                    )
+                                }
+                            }
+                        }
+                        Column {
+                            Text(
+                                text = "Preview",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.5.sp,
+                                color = palette.textPrimary
+                            )
+                            Text(
+                                text = if (logoUrl.trim().isNotEmpty()) "Live studio logo preview" else "No logo URL",
+                                fontSize = 11.5.sp,
+                                color = palette.textMuted
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (name.isNotBlank()) {
+                            val studio = editing?.copy(
+                                name = name.trim(),
+                                logoUrl = logoUrl.trim().ifEmpty { null }
+                            ) ?: StudioEntity(
+                                id = UUID.randomUUID().toString(),
+                                name = name.trim(),
+                                logoUrl = logoUrl.trim().ifEmpty { null }
+                            )
+                            viewModel.saveStudio(studio)
+                            showAddDialog = false
+                            studioToEdit = null
+                        }
+                    },
+                    enabled = name.isNotBlank()
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showAddDialog = false
+                    studioToEdit = null
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
