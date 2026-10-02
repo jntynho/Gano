@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,15 +28,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import com.example.R
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,6 +48,7 @@ import com.example.data.local.entity.LinkEntity
 import com.example.ui.MainViewModel
 import com.example.ui.theme.LocalAccentColor
 import com.example.ui.theme.LocalVaultPalette
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -58,6 +63,9 @@ fun AddEditLinkScreen(
     val accent = LocalAccentColor.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val hapticFeedback = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val links by viewModel.allLinks.collectAsStateWithLifecycle()
     val actors by viewModel.allActors.collectAsStateWithLifecycle()
@@ -210,6 +218,7 @@ fun AddEditLinkScreen(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(if (existingLink != null) "Edit Scene" else "Add Scene", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold) },
@@ -867,4 +876,5 @@ private fun PasteTrailingIcon(
         )
     }
 }
+
 

@@ -150,13 +150,15 @@ object MediaScrapers {
     suspend fun scrapeSukebei(query: String): List<ScrapedTorrent> {
         val list = mutableListOf<ScrapedTorrent>()
         try {
-            val searchUrl = "https://sukebei.nyaa.si/?f=0&c=0_0&q=${query.replace(" ", "+")}"
+            val encoded = query.trim().replace(" ", "+")
+            val searchUrl = "https://sukebei.nyaa.si/?f=0&c=0_0&q=$encoded&s=seeders&o=desc"
             val html = NetworkClient.getHtml(searchUrl)
             val doc = Jsoup.parse(html)
-            val rows = doc.select("tr.default, tr.success, tr.danger")
+            val rows = doc.select("table.torrent-list tbody tr, tr.default, tr.success, tr.danger")
 
             for (row in rows) {
                 val titleEl = row.select("td:nth-child(2) a:not(.comments)").lastOrNull()
+                    ?: row.select("a[href*=/view/]:not(.comments)").firstOrNull()
                 val magnetEl = row.select("a[href^=magnet:]").firstOrNull()
                 val sizeEl = row.select("td:nth-child(4)").firstOrNull()
                 val seedersEl = row.select("td:nth-child(6)").firstOrNull()
@@ -181,7 +183,175 @@ object MediaScrapers {
         return list
     }
 
-    // 5. SubtitleCat Scraper
+    // 4. XXXClub / Adult Trackers Scraper
+    suspend fun scrapeXxxClub(query: String): List<ScrapedTorrent> {
+        val list = mutableListOf<ScrapedTorrent>()
+        try {
+            val encoded = query.trim().replace(" ", "+")
+            val searchUrl = "https://xxxclub.to/torrents/browse?search=$encoded&sort=seeders&order=desc"
+            val html = NetworkClient.getHtml(searchUrl)
+            val doc = Jsoup.parse(html)
+            val rows = doc.select("table tbody tr, .table-responsive table tr")
+
+            for (row in rows.take(15)) {
+                val titleEl = row.select("a.torrent-title, a[href*=/torrents/details/]").firstOrNull()
+                    ?: row.select("td:nth-child(2) a").firstOrNull()
+                var magnet = row.select("a[href^=magnet:]").firstOrNull()?.attr("href")
+                val sizeEl = row.select("td:nth-child(4), .torrent-size").firstOrNull()
+                val seedersEl = row.select("td:nth-child(5), .text-success").firstOrNull()
+                val leechersEl = row.select("td:nth-child(6), .text-danger").firstOrNull()
+
+                // If magnet is not in table directly, fetch detail page if high match
+                if (magnet.isNullOrBlank() && titleEl != null) {
+                    val detailHref = titleEl.attr("href")
+                    if (detailHref.contains("/torrents/details/")) {
+                        try {
+                            val detailUrl = if (detailHref.startsWith("http")) detailHref else "https://xxxclub.to$detailHref"
+                            val detailHtml = NetworkClient.getHtml(detailUrl)
+                            val detailDoc = Jsoup.parse(detailHtml)
+                            magnet = detailDoc.select("a[href^=magnet:]").firstOrNull()?.attr("href")
+                        } catch (_: Exception) {}
+                    }
+                }
+
+                if (titleEl != null && !magnet.isNullOrBlank()) {
+                    val rawSeeders = seedersEl?.text()?.replace(Regex("[^0-9]"), "")?.toIntOrNull() ?: 1
+                    val rawLeechers = leechersEl?.text()?.replace(Regex("[^0-9]"), "")?.toIntOrNull() ?: 0
+                    list.add(
+                        ScrapedTorrent(
+                            title = titleEl.text().trim(),
+                            magnetUrl = magnet,
+                            size = sizeEl?.text()?.trim() ?: "Unknown",
+                            seeders = rawSeeders,
+                            leechers = rawLeechers,
+                            siteName = "XXXClub"
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "scrapeXxxClub error", e)
+        }
+        return list
+    }
+
+    // 5. BitSearch Trackers Scraper (High Speed & Reliability Fallback)
+    suspend fun scrapeBitSearch(query: String): List<ScrapedTorrent> {
+        val list = mutableListOf<ScrapedTorrent>()
+        try {
+            val encoded = query.trim().replace(" ", "+")
+            val searchUrl = "https://bitsearch.to/search?q=$encoded&sort=seeders"
+            val html = NetworkClient.getHtml(searchUrl)
+            val doc = Jsoup.parse(html)
+            val cards = doc.select(".card.search-result, li.search-result, div.search-result")
+
+            for (card in cards.take(15)) {
+                val titleEl = card.select("h5.title a, .card-title a, a[href*=/torrents/]").firstOrNull()
+                val magnetEl = card.select("a[href^=magnet:], a.dl-magnet").firstOrNull()
+                val sizeEl = card.select(".stats div:contains(GB), .stats div:contains(MB), .stats .size").firstOrNull()
+                val seedersEl = card.select(".stats .seeders, font[color=green], div:contains(Seeders)").firstOrNull()
+                val leechersEl = card.select(".stats .leechers, font[color=red], div:contains(Leechers)").firstOrNull()
+
+                if (titleEl != null && magnetEl != null) {
+                    val rawSeeders = seedersEl?.text()?.replace(Regex("[^0-9]"), "")?.toIntOrNull() ?: 0
+                    val rawLeechers = leechersEl?.text()?.replace(Regex("[^0-9]"), "")?.toIntOrNull() ?: 0
+                    list.add(
+                        ScrapedTorrent(
+                            title = titleEl.text().trim(),
+                            magnetUrl = magnetEl.attr("href"),
+                            size = sizeEl?.text()?.trim() ?: "Unknown",
+                            seeders = rawSeeders,
+                            leechers = rawLeechers,
+                            siteName = "BitSearch"
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "scrapeBitSearch error", e)
+        }
+        return list
+    }
+
+    // 6. Studio Normalization & Smart Query Formulator
+    fun buildSmartTorrentQueries(title: String, studio: String?): List<String> {
+        val queries = mutableListOf<String>()
+        val cleanTitle = title.replace(Regex("[\\[\\]()|:\"'/,]"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
+        if (!studio.isNullOrBlank()) {
+            val cleanStudio = studio.replace(Regex("(?i)\\b(studios?|network|productions?|media|group|films?|hd|\\.com)\\b"), "")
+                .replace(Regex("[\\[\\]()|:\"'/,]"), " ")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+            val collapsedStudio = cleanStudio.replace(" ", "")
+
+            if (cleanTitle.isNotBlank()) {
+                queries.add("$cleanStudio $cleanTitle")
+                if (collapsedStudio != cleanStudio && collapsedStudio.isNotBlank()) {
+                    queries.add("$collapsedStudio $cleanTitle")
+                }
+            } else {
+                queries.add(cleanStudio)
+                if (collapsedStudio != cleanStudio && collapsedStudio.isNotBlank()) {
+                    queries.add(collapsedStudio)
+                }
+            }
+        }
+
+        if (cleanTitle.isNotBlank() && !queries.contains(cleanTitle)) {
+            queries.add(cleanTitle)
+        }
+
+        return queries.distinct().filter { it.isNotBlank() }
+    }
+
+    // 7. Unified Torrent Search across All Adult Trackers
+    suspend fun searchTorrentsUnified(
+        query: String,
+        studio: String? = null,
+        provider: String = "ALL"
+    ): List<ScrapedTorrent> {
+        val results = mutableListOf<ScrapedTorrent>()
+        val searchQueries = buildSmartTorrentQueries(query, studio)
+        val primaryQuery = searchQueries.firstOrNull() ?: query
+
+        if (provider == "ALL" || provider == "SUKEBEI") {
+            val sukebeiResults = scrapeSukebei(primaryQuery)
+            results.addAll(sukebeiResults)
+            if (sukebeiResults.size < 3 && searchQueries.size > 1) {
+                val secondaryResults = scrapeSukebei(searchQueries[1])
+                for (sr in secondaryResults) {
+                    if (results.none { it.magnetUrl.equals(sr.magnetUrl, ignoreCase = true) }) {
+                        results.add(sr)
+                    }
+                }
+            }
+        }
+
+        if (provider == "ALL" || provider == "XXXCLUB") {
+            val xxxResults = scrapeXxxClub(primaryQuery)
+            for (xr in xxxResults) {
+                if (results.none { it.magnetUrl.equals(xr.magnetUrl, ignoreCase = true) }) {
+                    results.add(xr)
+                }
+            }
+        }
+
+        if (provider == "ALL" || provider == "BITSEARCH") {
+            val bitResults = scrapeBitSearch(primaryQuery)
+            for (br in bitResults) {
+                if (results.none { it.magnetUrl.equals(br.magnetUrl, ignoreCase = true) }) {
+                    results.add(br)
+                }
+            }
+        }
+
+        return results.distinctBy { it.magnetUrl }.sortedByDescending { it.seeders }
+    }
+
+    // 8. SubtitleCat Scraper
     suspend fun scrapeSubtitleCat(code: String): String? {
         return try {
             val url = "https://www.subtitlecat.com/index.php?search=${code.trim()}"

@@ -185,9 +185,6 @@ fun ActionCircleButton(
 }
 
 enum class Source { MAGNET, URL }
-enum class Quality { HD, K4 }
-
-val ItemWidth = 76.dp
 
 @Composable
 fun MainActionMenu(

@@ -420,6 +420,67 @@ object StashDbApiService {
         }
     }
 
+    suspend fun findStudio(id: String, apiKey: String = ""): StashStudio? = withContext(Dispatchers.IO) {
+        try {
+            val gqlQuery = """
+                query FindStudio(${'$'}id: ID!) {
+                  findStudio(id: ${'$'}id) {
+                    id
+                    name
+                    parent {
+                      id
+                      name
+                    }
+                    child_studios {
+                      id
+                      name
+                    }
+                  }
+                }
+            """.trimIndent()
+
+            val bodyJson = JSONObject().apply {
+                put("query", gqlQuery)
+                put("variables", JSONObject().apply { put("id", id) })
+            }
+
+            val reqBuilder = Request.Builder()
+                .url(GRAPHQL_ENDPOINT)
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .post(bodyJson.toString().toRequestBody(JSON_MEDIA_TYPE))
+
+            if (apiKey.isNotBlank()) {
+                reqBuilder.header("ApiKey", apiKey.trim())
+            }
+
+            val response = NetworkClient.okHttpClient.newCall(reqBuilder.build()).execute()
+            val rawBody = response.body?.string() ?: ""
+
+            if (response.isSuccessful) {
+                val json = JSONObject(rawBody)
+                val studioObj = json.optJSONObject("data")?.optJSONObject("findStudio") ?: return@withContext null
+                val name = studioObj.optString("name")
+                val parentName = studioObj.optJSONObject("parent")?.optString("name")?.ifBlank { null }
+                val childIds = mutableListOf<String>()
+                val childArr = studioObj.optJSONArray("child_studios")
+                if (childArr != null) {
+                    for (i in 0 until childArr.length()) {
+                        val cId = childArr.optJSONObject(i)?.optString("id")
+                        if (!cId.isNullOrBlank()) childIds.add(cId)
+                    }
+                }
+                return@withContext StashStudio(
+                    id = id,
+                    name = name,
+                    parentName = parentName,
+                    childIds = childIds
+                )
+            }
+        } catch (_: Exception) {}
+        return@withContext null
+    }
+
     suspend fun queryPerformerScenes(
         performerId: String,
         apiKey: String,

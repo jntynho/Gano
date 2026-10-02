@@ -18,7 +18,6 @@ import com.example.ui.screens.MainAppShell
 import com.example.ui.theme.GVJVaultTheme
 
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import coil.Coil
 import coil.ImageLoader
 import coil.decode.SvgDecoder
