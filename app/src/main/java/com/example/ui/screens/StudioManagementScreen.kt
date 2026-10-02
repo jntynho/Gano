@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import com.example.R
@@ -30,12 +31,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.data.local.entity.StudioEntity
 import com.example.ui.MainViewModel
 import com.example.ui.ScreenState
 import com.example.ui.theme.LocalAccentColor
 import com.example.ui.theme.LocalBetaTestPrivacy
 import com.example.ui.theme.LocalVaultPalette
+import com.example.ui.theme.parseHexColor
 import com.example.ui.theme.privacyImageBlur
 import java.util.UUID
 
@@ -51,7 +54,7 @@ fun StudioManagementScreen(
     val circleBorderColor = if (isLight) Color.Black else Color.White
 
     val studios by viewModel.allStudios.collectAsStateWithLifecycle()
-    val links by viewModel.allLinks.collectAsStateWithLifecycle()
+    val studioSceneCounts by viewModel.studioSceneCounts.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val showCards = settings.showManagementCards
 
@@ -81,11 +84,6 @@ fun StudioManagementScreen(
             viewModel.saveScrollPosition(scrollKey, 0, 0)
             gridState.scrollToItem(0)
         }
-    }
-
-    // Precalculate scene counts once in O(Links) for O(1) instant lookup per studio item
-    val studioSceneCounts = remember(links) {
-        links.flatMap { it.studioIds }.groupingBy { it }.eachCount()
     }
 
     val sortedStudios = remember(studios, sortOption) {
@@ -227,11 +225,25 @@ fun StudioManagementScreen(
                         ) {
                             val isBetaTest = LocalBetaTestPrivacy.current
 
-                            val studioCustomBg = studio.logoBgColor?.let {
-                                try { Color(android.graphics.Color.parseColor(it)) } catch (_: Exception) { null }
-                            } ?: palette.surface
+                            val studioCustomBg = remember(studio.logoBgColor, palette.surface) {
+                                if (!studio.logoBgColor.isNullOrBlank()) {
+                                    parseHexColor(studio.logoBgColor, palette.surface)
+                                } else {
+                                    palette.surface
+                                }
+                            }
 
                             if (!studio.logoUrl.isNullOrEmpty()) {
+                                val context = LocalContext.current
+                                val imageRequest = remember(studio.logoUrl, context) {
+                                    ImageRequest.Builder(context)
+                                        .data(studio.logoUrl)
+                                        .size(200, 200)
+                                        .crossfade(true)
+                                        .crossfade(150)
+                                        .build()
+                                }
+
                                 Box(
                                     modifier = Modifier
                                         .size(70.dp)
@@ -241,7 +253,7 @@ fun StudioManagementScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     AsyncImage(
-                                        model = studio.logoUrl,
+                                        model = imageRequest,
                                         contentDescription = studio.name,
                                         contentScale = ContentScale.Fit,
                                         modifier = Modifier

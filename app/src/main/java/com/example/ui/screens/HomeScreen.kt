@@ -70,7 +70,10 @@ import com.example.ui.MainViewModel
 import com.example.ui.ScreenState
 import com.example.ui.SortMode
 import com.example.ui.components.LinkCard
+import com.example.ui.theme.LocalAccentColor
 import com.example.ui.theme.LocalBetaTestPrivacy
+import com.example.ui.theme.LocalVaultPalette
+import com.example.ui.theme.parseHexColor
 import com.example.ui.theme.privacyImageBlur
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,14 +100,16 @@ fun HomeScreen(
     val targetActor = remember(currentScreen, actors) {
         if (currentScreen is ScreenState.ActorScenes) {
             val id = (currentScreen as ScreenState.ActorScenes).actorId
-            actors.firstOrNull { it.id == id }
+            actors.firstOrNull { it.id == id || it.name.equals(id, ignoreCase = true) }
+                ?: ActorEntity(id = id, name = id)
         } else null
     }
 
     val targetStudio = remember(currentScreen, studios) {
         if (currentScreen is ScreenState.StudioScenes) {
             val id = (currentScreen as ScreenState.StudioScenes).studioId
-            studios.firstOrNull { it.id == id }
+            studios.firstOrNull { it.id == id || it.name.equals(id, ignoreCase = true) }
+                ?: StudioEntity(id = id, name = id)
         } else null
     }
 
@@ -559,6 +564,16 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(0.dp),
                 contentPadding = PaddingValues(bottom = 16.dp)
             ) {
+                if (targetActor != null || targetStudio != null) {
+                    item(key = "actor_studio_header_banner") {
+                        ActorStudioHeaderBanner(
+                            actor = targetActor,
+                            studio = targetStudio,
+                            sceneCount = displayedLinks.size
+                        )
+                    }
+                }
+
                 items(displayedLinks, key = { it.id }) { link ->
                     val isBookmarked = remember(bookmarkedIds, link.id) {
                         bookmarkedIds.contains(link.id)
@@ -1626,3 +1641,174 @@ private fun Modifier.horizontalFadeEdge(fadeWidth: Dp = 20.dp): Modifier = this.
             }
         }
 )
+
+/**
+ * Top Entity Header Banner for Actor or Studio scenes feed.
+ * Occupies space above the first link card, displaying the actor/studio circle on the left
+ * and their name + scene count in front of it on the right side, matching Actor/Studio Management.
+ */
+@Composable
+fun ActorStudioHeaderBanner(
+    actor: ActorEntity?,
+    studio: StudioEntity?,
+    sceneCount: Int,
+    modifier: Modifier = Modifier
+) {
+    val palette = LocalVaultPalette.current
+    val accent = LocalAccentColor.current
+    val isBetaTest = LocalBetaTestPrivacy.current
+
+    val isLight = palette.name.equals("light", ignoreCase = true)
+    val isAmoled = palette.name.equals("amoled", ignoreCase = true)
+    val neutralCardBg = when {
+        isAmoled -> Color(0xFF1E1E24)
+        isLight -> Color(0xFFFFFFFF)
+        else -> Color(0xFF282832)
+    }
+    val circleBorderColor = when {
+        isAmoled -> Color(0xFF383842)
+        isLight -> Color(0xFFE0E0E0)
+        else -> Color(0xFF484856)
+    }
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = neutralCardBg,
+        border = BorderStroke(1.dp, palette.border.copy(alpha = 0.5f)),
+        shadowElevation = if (isLight) 3.dp else 1.5.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Circular Avatar (Same design as Actor/Studio Management)
+            if (actor != null) {
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .clip(CircleShape)
+                        .background(palette.cardBg)
+                ) {
+                    if (actor.imageUrl.isNotBlank()) {
+                        val z = (actor.imageZoom.coerceIn(100f, 300f)) / 100f
+                        val biasX = (actor.imagePositionX.coerceIn(0f, 100f) - 50f) / 50f
+                        val biasY = (actor.imagePositionY.coerceIn(0f, 100f) - 50f) / 50f
+                        AsyncImage(
+                            model = actor.imageUrl,
+                            contentDescription = actor.name,
+                            contentScale = ContentScale.Crop,
+                            alignment = BiasAlignment(biasX, biasY),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .privacyImageBlur(isBetaTest)
+                                .graphicsLayer {
+                                    val maxX = size.width * (z - 1f) / 2f
+                                    val maxY = size.height * (z - 1f) / 2f
+                                    scaleX = z
+                                    scaleY = z
+                                    translationX = -biasX * maxX
+                                    translationY = -biasY * maxY
+                                }
+                        )
+                        if (isBetaTest) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.75f))
+                            )
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(accent.copy(alpha = 0.25f), palette.cardBg)
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_nav_actor),
+                                contentDescription = null,
+                                tint = palette.textSecondary.copy(alpha = 0.9f),
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .border(1.5.dp, circleBorderColor, CircleShape)
+                    )
+                }
+            } else if (studio != null) {
+                val studioCustomBg = if (!studio.logoBgColor.isNullOrBlank()) {
+                    parseHexColor(studio.logoBgColor, palette.surface)
+                } else {
+                    palette.surface
+                }
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .clip(CircleShape)
+                        .background(studioCustomBg)
+                        .border(1.5.dp, circleBorderColor, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!studio.logoUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = studio.logoUrl,
+                            contentDescription = studio.name,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(6.dp)
+                                .privacyImageBlur(isBetaTest)
+                        )
+                        if (isBetaTest) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.75f))
+                            )
+                        }
+                    } else {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_nav_studio),
+                            contentDescription = null,
+                            tint = palette.textMuted,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = actor?.name ?: studio?.name ?: "",
+                    color = palette.textPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = "$sceneCount scenes",
+                    color = accent,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}

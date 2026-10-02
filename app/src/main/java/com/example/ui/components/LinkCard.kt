@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
@@ -342,6 +343,13 @@ fun LinkCard(
 
                 val isBetaTest = LocalBetaTestPrivacy.current
 
+                // Smooth Blur Radius applied selectively when overlay is active to ensure 120fps scrolling
+                val overlayBlurRadius by animateDpAsState(
+                    targetValue = if (isOverlayActive) 14.dp else 0.dp,
+                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                    label = "cover_overlay_blur"
+                )
+
                 if (link.coverImage.isNotEmpty()) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
@@ -356,6 +364,11 @@ fun LinkCard(
                         modifier = Modifier
                             .fillMaxSize()
                             .privacyImageBlur(isBetaTest)
+                            .then(
+                                if (overlayBlurRadius > 0.5.dp) {
+                                    Modifier.blur(radius = overlayBlurRadius, edgeTreatment = BlurredEdgeTreatment.Rectangle)
+                                } else Modifier
+                            )
                             .graphicsLayer {
                                 alpha = coverAlpha
                                 scaleX = coverScale
@@ -396,7 +409,7 @@ fun LinkCard(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer { alpha = scrimAlpha }
-                        .background(Color.Black.copy(alpha = 0.55f))
+                        .background(Color.Black.copy(alpha = 0.65f))
                         .clickable(
                             enabled = isOverlayActive,
                             interactionSource = remember { MutableInteractionSource() },
@@ -427,15 +440,18 @@ fun LinkCard(
                         AnimatedContent(
                             targetState = if (isOverlayActive) currentMenuState else lastOpenMenuState,
                             transitionSpec = {
-                                (fadeIn(animationSpec = tween(170, easing = LinearOutSlowInEasing)) +
+                                (fadeIn(animationSpec = tween(190, easing = LinearOutSlowInEasing)) +
                                         scaleIn(
-                                            initialScale = 0.94f,
-                                            animationSpec = tween(170, easing = LinearOutSlowInEasing)
+                                            initialScale = 0.70f,
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                stiffness = Spring.StiffnessMediumLow
+                                            )
                                         ))
                                     .togetherWith(
                                         fadeOut(animationSpec = tween(120, easing = FastOutLinearInEasing)) +
                                                 scaleOut(
-                                                    targetScale = 0.96f,
+                                                    targetScale = 0.82f,
                                                     animationSpec = tween(120, easing = FastOutLinearInEasing)
                                                 )
                                     )

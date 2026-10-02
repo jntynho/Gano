@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import com.example.R
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.data.local.entity.ActorEntity
 import com.example.ui.MainViewModel
 import com.example.ui.ScreenState
@@ -61,7 +63,7 @@ fun ActorManagementScreen(
     val circleBorderColor = if (isLight) Color.Black else Color.White
 
     val actors by viewModel.allActors.collectAsStateWithLifecycle()
-    val links by viewModel.allLinks.collectAsStateWithLifecycle()
+    val actorSceneCounts by viewModel.actorSceneCounts.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val showCards = settings.showManagementCards
 
@@ -91,11 +93,6 @@ fun ActorManagementScreen(
             viewModel.saveScrollPosition(scrollKey, 0, 0)
             gridState.scrollToItem(0)
         }
-    }
-
-    // Precalculate scene counts once in O(Links) for O(1) instant lookup per actor item
-    val actorSceneCounts = remember(links) {
-        links.flatMap { it.actorIds }.groupingBy { it }.eachCount()
     }
 
     val sortedActors = remember(actors, sortOption) {
@@ -245,25 +242,40 @@ fun ActorManagementScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (actor.imageUrl.isNotEmpty()) {
+                                    val context = LocalContext.current
+                                    val imageRequest = remember(actor.imageUrl, context) {
+                                        ImageRequest.Builder(context)
+                                            .data(actor.imageUrl)
+                                            .size(200, 200)
+                                            .crossfade(true)
+                                            .crossfade(150)
+                                            .build()
+                                    }
                                     val z = actor.imageZoom.coerceIn(1f, 3f)
                                     val biasX = (actor.imagePositionX.coerceIn(0f, 100f) - 50f) / 50f
                                     val biasY = (actor.imagePositionY.coerceIn(0f, 100f) - 50f) / 50f
+                                    val hasCustomTransform = z > 1.02f || biasX != 0f || biasY != 0f
+
                                     AsyncImage(
-                                        model = actor.imageUrl,
+                                        model = imageRequest,
                                         contentDescription = actor.name,
                                         contentScale = ContentScale.Crop,
                                         alignment = BiasAlignment(biasX, biasY),
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .privacyImageBlur(isBetaTest)
-                                            .graphicsLayer {
-                                                val maxX = size.width * (z - 1f) / 2f
-                                                val maxY = size.height * (z - 1f) / 2f
-                                                scaleX = z
-                                                scaleY = z
-                                                translationX = -biasX * maxX
-                                                translationY = -biasY * maxY
-                                            }
+                                            .then(
+                                                if (hasCustomTransform) {
+                                                    Modifier.graphicsLayer {
+                                                        val maxX = size.width * (z - 1f) / 2f
+                                                        val maxY = size.height * (z - 1f) / 2f
+                                                        scaleX = z
+                                                        scaleY = z
+                                                        translationX = -biasX * maxX
+                                                        translationY = -biasY * maxY
+                                                    }
+                                                } else Modifier
+                                            )
                                     )
                                     if (isBetaTest) {
                                         Box(

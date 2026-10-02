@@ -114,10 +114,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 repository.updateSettings(updatedSett)
             }
 
-            // Insert sample test dataset scenes, actors, and studios into the database if not present
+            // Insert sample test dataset scenes, actors, and studios into the database atomically if empty
             val existingLinkIds = existingLinks.map { it.id }.toSet()
-            com.example.data.util.SampleTestDataset.sampleActors.forEach { repository.insertActor(it) }
-            com.example.data.util.SampleTestDataset.sampleStudios.forEach { repository.insertStudio(it) }
+            val existingActors = repository.allActors.first()
+            if (existingActors.isEmpty()) {
+                repository.insertActors(com.example.data.util.SampleTestDataset.sampleActors)
+            }
+            val existingStudios = repository.allStudios.first()
+            if (existingStudios.isEmpty()) {
+                repository.insertStudios(com.example.data.util.SampleTestDataset.sampleStudios)
+            }
             val missingSampleScenes = com.example.data.util.SampleTestDataset.sampleScenes.filter { it.id !in existingLinkIds }
             if (missingSampleScenes.isNotEmpty()) {
                 repository.insertLinks(missingSampleScenes)
@@ -858,6 +864,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val allLinks = repository.allLinks.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val allActors = repository.allActors.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val allStudios = repository.allStudios.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val actorSceneCounts: StateFlow<Map<String, Int>> = allLinks
+        .map { links ->
+            withContext(Dispatchers.Default) {
+                links.flatMap { it.actorIds }.groupingBy { it }.eachCount()
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    val studioSceneCounts: StateFlow<Map<String, Int>> = allLinks
+        .map { links ->
+            withContext(Dispatchers.Default) {
+                links.flatMap { it.studioIds }.groupingBy { it }.eachCount()
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
     private val _settingsState = MutableStateFlow<SettingsEntity?>(null)
     val settings: StateFlow<SettingsEntity> = repository.settings
         .map { it ?: SettingsEntity() }
