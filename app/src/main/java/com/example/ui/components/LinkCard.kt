@@ -469,7 +469,9 @@ fun LinkCard(
                             },
                             onDelete = {
                                 subMenuState = CardActionMenuState.DELETE_CONFIRM
-                            }
+                            },
+                            showMagnet = hasAnyMagnet,
+                            showUrl = hasAnyUrl
                         )
                     }
 

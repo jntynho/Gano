@@ -197,47 +197,48 @@ fun MainActionMenu(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
-    isSaved: Boolean = false
+    isSaved: Boolean = false,
+    showMagnet: Boolean = true,
+    showUrl: Boolean = true
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ActionCircleButton(
-            label = "Magnet",
-            color = BtnColors.Magnet,
-            onClick = onMagnetClick,
-            modifier = Modifier.weight(1f),
-            icon = painterResource(R.drawable.ic_magnet),
-            iconRotation = 0f
-        )
-        ActionCircleButton(
-            label = "URL",
-            color = BtnColors.Url,
-            onClick = onUrlClick,
-            modifier = Modifier.weight(1f),
-            icon = painterResource(R.drawable.ic_url_link)
-        )
+        if (showMagnet) {
+            ActionCircleButton(
+                label = "Magnet",
+                color = BtnColors.Magnet,
+                onClick = onMagnetClick,
+                icon = painterResource(R.drawable.ic_magnet),
+                iconRotation = 0f
+            )
+        }
+        if (showUrl) {
+            ActionCircleButton(
+                label = "URL",
+                color = BtnColors.Url,
+                onClick = onUrlClick,
+                icon = painterResource(R.drawable.ic_url_link)
+            )
+        }
         ActionCircleButton(
             label = if (isSaved) "Saved" else "Save",
             color = BtnColors.Save,
             onClick = onSave,
-            modifier = Modifier.weight(1f),
             icon = painterResource(if (isSaved) R.drawable.ic_bookmark_saved else R.drawable.ic_bookmark_save)
         )
         ActionCircleButton(
             label = "Edit",
             color = BtnColors.Edit,
             onClick = onEdit,
-            modifier = Modifier.weight(1f),
             icon = painterResource(R.drawable.ic_edit_pencil)
         )
         ActionCircleButton(
             label = "Delete",
             color = BtnColors.Delete,
             onClick = onDelete,
-            modifier = Modifier.weight(1f),
             icon = painterResource(R.drawable.ic_delete_trash)
         )
     }
@@ -256,20 +257,22 @@ fun QualitySelectMenu(
         horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ActionCircleButton(
-            label = "HD",
-            color = BtnColors.Hd,
-            onClick = onSelectHD,
-            text = "HD",
-            enabled = hasHD
-        )
-        ActionCircleButton(
-            label = "4K",
-            color = BtnColors.K4,
-            onClick = onSelect4K,
-            text = "4K",
-            enabled = has4K
-        )
+        if (hasHD) {
+            ActionCircleButton(
+                label = "HD",
+                color = BtnColors.Hd,
+                onClick = onSelectHD,
+                text = "HD"
+            )
+        }
+        if (has4K) {
+            ActionCircleButton(
+                label = "4K",
+                color = BtnColors.K4,
+                onClick = onSelect4K,
+                text = "4K"
+            )
+        }
     }
 }
 

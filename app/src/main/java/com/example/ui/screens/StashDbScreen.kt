@@ -34,6 +34,7 @@ import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -474,95 +475,110 @@ fun StashDbScreen(
                     }
                 }
 
-                // Two Mode Selector Tabs: Actors & Studio
+                // Two Mode Selector Tabs: Actors & Studio with Smooth Sliding Indicator
                 Surface(
                     color = palette.surface,
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    val indicatorBias by animateFloatAsState(
+                        targetValue = if (activeType == StashSearchType.ACTORS) -1f else 1f,
+                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                        label = "stash_tab_indicator_bias"
+                    )
+                    val actorTabColor by animateColorAsState(
+                        targetValue = if (activeType == StashSearchType.ACTORS) accent else palette.textSecondary,
+                        animationSpec = tween(durationMillis = 180),
+                        label = "actor_tab_color"
+                    )
+                    val studioTabColor by animateColorAsState(
+                        targetValue = if (activeType == StashSearchType.STUDIO) accent else palette.textSecondary,
+                        animationSpec = tween(durationMillis = 180),
+                        label = "studio_tab_color"
+                    )
+
                     Column {
-                        Row(
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp)
                         ) {
-                            // Actors Tab
-                            val isActorsSelected = activeType == StashSearchType.ACTORS
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                        onClick = { viewModel.setStashActiveType(StashSearchType.ACTORS, settings.stashDbApiKey) }
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            Row(modifier = Modifier.fillMaxSize()) {
+                                // Actors Tab
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = { viewModel.setStashActiveType(StashSearchType.ACTORS, settings.stashDbApiKey) }
+                                        ),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_nav_actor),
-                                        contentDescription = null,
-                                        tint = if (isActorsSelected) accent else palette.textSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Text(
-                                        text = "Actor",
-                                        fontWeight = if (isActorsSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                        color = if (isActorsSelected) accent else palette.textSecondary
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_nav_actor),
+                                            contentDescription = null,
+                                            tint = actorTabColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = "Actor",
+                                            fontWeight = if (activeType == StashSearchType.ACTORS) FontWeight.Bold else FontWeight.SemiBold,
+                                            color = actorTabColor
+                                        )
+                                    }
                                 }
-                                if (isActorsSelected) {
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .fillMaxWidth()
-                                            .height(3.dp)
-                                            .background(accent)
-                                    )
+
+                                // Studio Tab
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = { viewModel.setStashActiveType(StashSearchType.STUDIO, settings.stashDbApiKey) }
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_nav_studio),
+                                            contentDescription = null,
+                                            tint = studioTabColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = "Studio",
+                                            fontWeight = if (activeType == StashSearchType.STUDIO) FontWeight.Bold else FontWeight.SemiBold,
+                                            color = studioTabColor
+                                        )
+                                    }
                                 }
                             }
 
-                            // Studio Tab
-                            val isStudioSelected = activeType == StashSearchType.STUDIO
+                            // Smooth Sliding Indicator Underline
                             Box(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                        onClick = { viewModel.setStashActiveType(StashSearchType.STUDIO, settings.stashDbApiKey) }
-                                    ),
-                                contentAlignment = Alignment.Center
+                                    .fillMaxWidth()
+                                    .height(3.dp)
+                                    .align(Alignment.BottomCenter)
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_nav_studio),
-                                        contentDescription = null,
-                                        tint = if (isStudioSelected) accent else palette.textSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Text(
-                                        text = "Studio",
-                                        fontWeight = if (isStudioSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                        color = if (isStudioSelected) accent else palette.textSecondary
-                                    )
-                                }
-                                if (isStudioSelected) {
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .fillMaxWidth()
-                                            .height(3.dp)
-                                            .background(accent)
-                                    )
-                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.5f)
+                                        .fillMaxHeight()
+                                        .align(BiasAlignment(indicatorBias, 0f))
+                                        .padding(horizontal = 24.dp)
+                                        .background(accent, RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                                )
                             }
                         }
                         HorizontalDivider(color = palette.border)
@@ -623,59 +639,74 @@ fun StashDbScreen(
                                 }
                             }
                         }
-                    } else if (activeType == StashSearchType.ACTORS && performerResults.isNotEmpty()) {
-                        Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                            Text(
-                                text = "Results : ${performerResults.size}",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp
-                                ),
-                                color = palette.textMuted,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                            )
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalFadeEdge(24.dp)
-                            ) {
-                                items(performerResults, key = { it.id }) { performer ->
-                                    val isSelected = selectedPerformer?.id == performer.id
-                                    HorizontalActorCircleItem(
-                                        performer = performer,
-                                        isSelected = isSelected,
-                                        onClick = { viewModel.selectStashPerformer(performer, settings.stashDbApiKey) }
+                    } else {
+                        AnimatedContent(
+                            targetState = activeType,
+                            transitionSpec = {
+                                (fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                                        slideInHorizontally(animationSpec = tween(220, easing = FastOutSlowInEasing)) { if (targetState == StashSearchType.STUDIO) it / 5 else -it / 5 })
+                                    .togetherWith(
+                                        fadeOut(animationSpec = tween(150, easing = FastOutLinearInEasing)) +
+                                                slideOutHorizontally(animationSpec = tween(180, easing = FastOutSlowInEasing)) { if (targetState == StashSearchType.STUDIO) -it / 5 else it / 5 }
                                     )
+                            },
+                            label = "stash_results_type_anim"
+                        ) { type ->
+                            if (type == StashSearchType.ACTORS && performerResults.isNotEmpty()) {
+                                Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                                    Text(
+                                        text = "Results : ${performerResults.size}",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp
+                                        ),
+                                        color = palette.textMuted,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                                    )
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .horizontalFadeEdge(24.dp)
+                                    ) {
+                                        items(performerResults, key = { it.id }) { performer ->
+                                            val isSelected = selectedPerformer?.id == performer.id
+                                            HorizontalActorCircleItem(
+                                                performer = performer,
+                                                isSelected = isSelected,
+                                                onClick = { viewModel.selectStashPerformer(performer, settings.stashDbApiKey) }
+                                            )
+                                        }
+                                    }
                                 }
-                            }
-                        }
-                    } else if (activeType == StashSearchType.STUDIO && studioResults.isNotEmpty()) {
-                        Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                            Text(
-                                text = "Results : ${studioResults.size}",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp
-                                ),
-                                color = palette.textMuted,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                            )
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalFadeEdge(24.dp)
-                            ) {
-                                items(studioResults, key = { it.id }) { studio ->
-                                    val isSelected = selectedStudio?.id == studio.id
-                                    HorizontalStudioCircleItem(
-                                        studio = studio,
-                                        isSelected = isSelected,
-                                        onClick = { viewModel.selectStashStudio(studio, settings.stashDbApiKey) }
+                            } else if (type == StashSearchType.STUDIO && studioResults.isNotEmpty()) {
+                                Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                                    Text(
+                                        text = "Results : ${studioResults.size}",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp
+                                        ),
+                                        color = palette.textMuted,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                                     )
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .horizontalFadeEdge(24.dp)
+                                    ) {
+                                        items(studioResults, key = { it.id }) { studio ->
+                                            val isSelected = selectedStudio?.id == studio.id
+                                            HorizontalStudioCircleItem(
+                                                studio = studio,
+                                                isSelected = isSelected,
+                                                onClick = { viewModel.selectStashStudio(studio, settings.stashDbApiKey) }
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -814,11 +845,24 @@ fun StashDbScreen(
                             subtitle = "Select another result from the top row or try a new search query."
                         )
                     } else {
-                        EmptyStateView(
-                            icon = if (activeType == StashSearchType.ACTORS) Icons.Outlined.Person else Icons.Outlined.Videocam,
-                            title = if (activeType == StashSearchType.ACTORS) "Search Actor & Explore Scenes" else "Search Studio & Explore Scenes",
-                            subtitle = "Tap the search icon in the header, type a name, and tap the search icon to search. Click any scene to select, then tap the checkmark in the header to save."
-                        )
+                        AnimatedContent(
+                            targetState = activeType,
+                            transitionSpec = {
+                                (fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                                        slideInHorizontally(animationSpec = tween(220, easing = FastOutSlowInEasing)) { if (targetState == StashSearchType.STUDIO) it / 6 else -it / 6 })
+                                    .togetherWith(
+                                        fadeOut(animationSpec = tween(150, easing = FastOutLinearInEasing)) +
+                                                slideOutHorizontally(animationSpec = tween(180, easing = FastOutSlowInEasing)) { if (targetState == StashSearchType.STUDIO) -it / 6 else it / 6 }
+                                    )
+                            },
+                            label = "stash_empty_state_anim"
+                        ) { type ->
+                            EmptyStateView(
+                                icon = if (type == StashSearchType.ACTORS) Icons.Outlined.Person else Icons.Outlined.Videocam,
+                                title = if (type == StashSearchType.ACTORS) "Search Actor & Explore Scenes" else "Search Studio & Explore Scenes",
+                                subtitle = "Tap the search icon in the header, type a name, and tap the search icon to search. Click any scene to select, then tap the checkmark in the header to save."
+                            )
+                        }
                     }
                 }
             }
