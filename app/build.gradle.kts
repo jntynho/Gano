@@ -160,3 +160,9 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }
+
+tasks.configureEach {
+  if (name.endsWith("ArtProfile")) {
+    enabled = false
+  }
+}
