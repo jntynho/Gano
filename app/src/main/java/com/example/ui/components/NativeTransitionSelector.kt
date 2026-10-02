@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,32 +37,34 @@ fun NativeTransitionSelector(
     onSelectStyle: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val options = listOf(
-        TransitionOptionItem(
-            id = 0,
-            title = "Default Motion",
-            subtitle = "Smooth vertical slide & fade",
-            icon = Icons.Outlined.SwapVert
-        ),
-        TransitionOptionItem(
-            id = 1,
-            title = "Lateral Slide",
-            subtitle = "Clean horizontal side navigation",
-            icon = Icons.Outlined.SwapHoriz
-        ),
-        TransitionOptionItem(
-            id = 2,
-            title = "Smooth Fade & Scale",
-            subtitle = "Ultra lightweight & fluid transition",
-            icon = Icons.Outlined.AutoAwesome
-        ),
-        TransitionOptionItem(
-            id = 3,
-            title = "Link Transition",
-            subtitle = "Static top header with seamless in-place transitions",
-            icon = Icons.Outlined.Link
+    val options = remember {
+        listOf(
+            TransitionOptionItem(
+                id = 0,
+                title = "Default Motion",
+                subtitle = "Smooth vertical slide & fade",
+                icon = Icons.Outlined.SwapVert
+            ),
+            TransitionOptionItem(
+                id = 1,
+                title = "Lateral Slide",
+                subtitle = "Clean horizontal side navigation",
+                icon = Icons.Outlined.SwapHoriz
+            ),
+            TransitionOptionItem(
+                id = 2,
+                title = "Smooth Fade & Scale",
+                subtitle = "Ultra lightweight & fluid transition",
+                icon = Icons.Outlined.AutoAwesome
+            ),
+            TransitionOptionItem(
+                id = 3,
+                title = "Link Transition",
+                subtitle = "Static top header with seamless in-place transitions",
+                icon = Icons.Outlined.Link
+            )
         )
-    )
+    }
 
     Column(
         modifier = modifier.fillMaxWidth(),

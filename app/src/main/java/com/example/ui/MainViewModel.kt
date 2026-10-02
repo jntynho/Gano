@@ -81,6 +81,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun seedInitialDataIfEmpty() {
         viewModelScope.launch(Dispatchers.IO) {
+            // Post-frame delay to allow initial cold start rendering and entrance animations to finish smoothly
+            kotlinx.coroutines.delay(350L)
+
             val existingLinks = repository.allLinks.first()
             
             // Delete obsolete demo IDs if present
@@ -111,10 +114,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 repository.updateSettings(updatedSett)
             }
 
-            // Always insert / update all sample test dataset scenes, actors, and studios into the database
+            // Insert sample test dataset scenes, actors, and studios into the database if not present
+            val existingLinkIds = existingLinks.map { it.id }.toSet()
             com.example.data.util.SampleTestDataset.sampleActors.forEach { repository.insertActor(it) }
             com.example.data.util.SampleTestDataset.sampleStudios.forEach { repository.insertStudio(it) }
-            repository.insertLinks(com.example.data.util.SampleTestDataset.sampleScenes)
+            val missingSampleScenes = com.example.data.util.SampleTestDataset.sampleScenes.filter { it.id !in existingLinkIds }
+            if (missingSampleScenes.isNotEmpty()) {
+                repository.insertLinks(missingSampleScenes)
+            }
         }
     }
 

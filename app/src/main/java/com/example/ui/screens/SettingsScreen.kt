@@ -154,16 +154,16 @@ fun SettingsScreen(
             targetState = currentSection,
             transitionSpec = {
                 if (targetState != SettingsSection.MAIN_MENU) {
-                    (fadeIn(animationSpec = androidx.compose.animation.core.tween(200)) +
-                            slideInHorizontally { width -> width / 3 })
+                    (fadeIn(animationSpec = androidx.compose.animation.core.tween(220, easing = androidx.compose.animation.core.LinearOutSlowInEasing)) +
+                            slideInHorizontally(animationSpec = androidx.compose.animation.core.tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { width -> width / 5 })
                         .togetherWith(
-                            fadeOut(animationSpec = androidx.compose.animation.core.tween(150))
+                            fadeOut(animationSpec = androidx.compose.animation.core.tween(160, easing = androidx.compose.animation.core.FastOutLinearInEasing))
                         )
                 } else {
-                    fadeIn(animationSpec = androidx.compose.animation.core.tween(200))
+                    fadeIn(animationSpec = androidx.compose.animation.core.tween(200, easing = androidx.compose.animation.core.LinearOutSlowInEasing))
                         .togetherWith(
-                            fadeOut(animationSpec = androidx.compose.animation.core.tween(150)) +
-                                    slideOutHorizontally { width -> width / 3 }
+                            fadeOut(animationSpec = androidx.compose.animation.core.tween(160, easing = androidx.compose.animation.core.FastOutLinearInEasing)) +
+                                    slideOutHorizontally(animationSpec = androidx.compose.animation.core.tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { width -> width / 5 }
                         )
                 }
             },

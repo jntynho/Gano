@@ -156,34 +156,27 @@ fun SplitCircleSwatch(
     modifier: Modifier = Modifier
 ) {
     Canvas(modifier = modifier) {
-        val width = size.width
-        val height = size.height
-
-        val circlePath = Path().apply {
-            addOval(Rect(0f, 0f, width, height))
-        }
-
-        clipPath(circlePath) {
-            // 1. Top half
-            drawRect(
-                color = topColor,
-                topLeft = Offset(0f, 0f),
-                size = Size(width, height / 2f)
-            )
-
-            // 2. Bottom-left quadrant
-            drawRect(
-                color = bottomLeftColor,
-                topLeft = Offset(0f, height / 2f),
-                size = Size(width / 2f, height / 2f)
-            )
-
-            // 3. Bottom-right quadrant
-            drawRect(
-                color = bottomRightColor,
-                topLeft = Offset(width / 2f, height / 2f),
-                size = Size(width / 2f, height / 2f)
-            )
-        }
+        // Direct hardware-accelerated arc drawing with zero allocations
+        // 1. Top half (180° to 360°)
+        drawArc(
+            color = topColor,
+            startAngle = 180f,
+            sweepAngle = 180f,
+            useCenter = true
+        )
+        // 2. Bottom-left quadrant (90° to 180°)
+        drawArc(
+            color = bottomLeftColor,
+            startAngle = 90f,
+            sweepAngle = 90f,
+            useCenter = true
+        )
+        // 3. Bottom-right quadrant (0° to 90°)
+        drawArc(
+            color = bottomRightColor,
+            startAngle = 0f,
+            sweepAngle = 90f,
+            useCenter = true
+        )
     }
 }

@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -52,6 +53,24 @@ object BtnColors {
 
 val LocalActionsInteractive = compositionLocalOf { true }
 
+private val ActionTextShadowBackdrop = TextStyle(
+    platformStyle = PlatformTextStyle(includeFontPadding = false),
+    shadow = androidx.compose.ui.graphics.Shadow(
+        color = Color.White.copy(alpha = 0.5f),
+        offset = androidx.compose.ui.geometry.Offset(0f, 0f),
+        blurRadius = 6f
+    )
+)
+
+private val ActionTextShadowForeground = TextStyle(
+    platformStyle = PlatformTextStyle(includeFontPadding = false),
+    shadow = androidx.compose.ui.graphics.Shadow(
+        color = Color.White.copy(alpha = 0.8f),
+        offset = androidx.compose.ui.geometry.Offset(0f, 0f),
+        blurRadius = 8f
+    )
+)
+
 @Composable
 fun ActionCircleButton(
     label: String,
@@ -76,14 +95,19 @@ fun ActionCircleButton(
     )
 
     Column(
-        modifier = modifier.alpha(if (enabled) 1f else 0.42f),
+        modifier = modifier.graphicsLayer {
+            alpha = if (enabled) 1f else 0.42f
+        },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Box(
             modifier = Modifier
                 .size(58.dp)
-                .scale(scale)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
                 .clip(CircleShape)
                 .background(if (enabled) color else color.copy(alpha = 0.5f))
                 .border(BorderStroke(2.dp, Color.White.copy(alpha = if (enabled) 0.28f else 0.12f)), CircleShape)
@@ -135,14 +159,7 @@ fun ActionCircleButton(
                         letterSpacing = 1.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.offset(x = 0.5.dp, y = 0.5.dp),
-                        style = TextStyle(
-                            platformStyle = PlatformTextStyle(includeFontPadding = false),
-                            shadow = androidx.compose.ui.graphics.Shadow(
-                                color = Color.White.copy(alpha = 0.5f),
-                                offset = androidx.compose.ui.geometry.Offset(0f, 0f),
-                                blurRadius = 6f
-                            )
-                        )
+                        style = ActionTextShadowBackdrop
                     )
                     Text(
                         text = text,
@@ -151,14 +168,7 @@ fun ActionCircleButton(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp,
                         textAlign = TextAlign.Center,
-                        style = TextStyle(
-                            platformStyle = PlatformTextStyle(includeFontPadding = false),
-                            shadow = androidx.compose.ui.graphics.Shadow(
-                                color = Color.White.copy(alpha = 0.8f),
-                                offset = androidx.compose.ui.geometry.Offset(0f, 0f),
-                                blurRadius = 8f
-                            )
-                        )
+                        style = ActionTextShadowForeground
                     )
                 }
             }

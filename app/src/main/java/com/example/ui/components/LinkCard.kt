@@ -199,12 +199,6 @@ fun LinkCard(
         }
     }
 
-    val imageBlur by animateDpAsState(
-        targetValue = if (isOverlayActive) 8.dp else 0.dp,
-        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
-        label = "cover_blur"
-    )
-
     // O(1) Instant Lookup for Actors and Studio Names (No list iteration inside composition)
     val actorsDisplayName = remember(link.actorIds, actorsMap) {
         if (link.actorIds.isEmpty()) {
@@ -333,15 +327,7 @@ fun LinkCard(
             } else {
                 // Background Image with hardware layer acceleration and native reveal transition
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(
-                            if (imageBlur > 0.dp) {
-                                Modifier.blur(imageBlur)
-                            } else {
-                                Modifier
-                            }
-                        )
+                    modifier = Modifier.fillMaxSize()
                 ) {
                 // Native Clean Skeleton Loading Shimmer while image is loading or before it appears
                 if (!isImageLoaded && link.coverImage.isNotEmpty()) {
@@ -441,22 +427,17 @@ fun LinkCard(
                         AnimatedContent(
                             targetState = if (isOverlayActive) currentMenuState else lastOpenMenuState,
                             transitionSpec = {
-                                (fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) +
+                                (fadeIn(animationSpec = tween(170, easing = LinearOutSlowInEasing)) +
                                         scaleIn(
-                                            initialScale = 0.90f,
-                                            animationSpec = tween(180, easing = LinearOutSlowInEasing)
+                                            initialScale = 0.94f,
+                                            animationSpec = tween(170, easing = LinearOutSlowInEasing)
                                         ))
                                     .togetherWith(
-                                        fadeOut(animationSpec = tween(140, easing = FastOutLinearInEasing)) +
+                                        fadeOut(animationSpec = tween(120, easing = FastOutLinearInEasing)) +
                                                 scaleOut(
-                                                    targetScale = 0.95f,
-                                                    animationSpec = tween(140, easing = FastOutLinearInEasing)
+                                                    targetScale = 0.96f,
+                                                    animationSpec = tween(120, easing = FastOutLinearInEasing)
                                                 )
-                                    )
-                                    .using(
-                                        SizeTransform(clip = false) { _, _ ->
-                                            tween(durationMillis = 160, easing = FastOutSlowInEasing)
-                                        }
                                     )
                             },
                             contentAlignment = Alignment.Center,
